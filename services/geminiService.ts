@@ -25,22 +25,10 @@ export const generateDetailedPrompt = async (imageFile: File): Promise<string> =
         const imagePart = await fileToGenerativePart(imageFile);
         const model = 'gemini-2.5-flash';
 
-        const instructionText = `Analyze the people in the attached image, focusing on their clothing and appearance. Then, generate a single, highly detailed, photorealistic master prompt for an image generation AI by placing them in the following scene.
-SCENE DESCRIPTION:
-Make the two people look as if they met in an alley in a shabby rented house in the afternoon, there are clotheslines and several trash cans.
-COMPOSITION:
-Make the view from below (low angle) showing them both squatting with their faces looking at the camera with a surprised expression. Make them far apart.
-SUBJECT DETAILS:
-The adult man/woman wears the clothes and shoes from the provided photo reference. The child wears a plain white t-shirt, cream-colored shorts and flip-flops, and is holding a toy car made of an orange peel. The adult's hand is holding the child's lollipop.
-STYLE & QUALITY:
-The scene should feel 'very contrasting with the bright subject'. Maintain the exact facial and hair details of the uploaded reference photo. Ensure realistic skin texture, natural expressions, and photorealistic quality.
-
-Your entire output must be a single JSON object with one key, "prompt", containing the final generated master prompt.`;
-
         const contents = {
             parts: [
                 imagePart,
-                { text: instructionText }
+                { text: "Analyze this image and generate a master prompt for image generation AI. The prompt must be extremely detailed and photorealistic, focusing on recreating the image with perfect fidelity. Describe: 1. Subject(s): clothing, pose, action. 2. Setting: environment, background details. 3. Composition: camera angle, shot type (e.g., close-up, wide shot), lens (e.g., 35mm), aperture. 4. Lighting: style (e.g., cinematic, soft), direction, and color of light. 5. Style: overall aesthetic (e.g., hyperrealistic, cinematic photo). CRITICAL: Do not describe the faces of any subjects. The goal is a professional-grade prompt for generating an identical scene. Return as a JSON object with a single key 'prompt'." }
             ],
         };
 
@@ -52,7 +40,7 @@ Your entire output must be a single JSON object with one key, "prompt", containi
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
-                        prompt: { type: Type.STRING, description: "A single, highly detailed and descriptive prompt based on the provided scene and image subjects." },
+                        prompt: { type: Type.STRING, description: "A single, highly detailed and descriptive prompt to recreate the image scene without describing faces." },
                     },
                     required: ["prompt"]
                 }
@@ -63,7 +51,10 @@ Your entire output must be a single JSON object with one key, "prompt", containi
         const responseJson = JSON.parse(responseText) as { prompt: string };
         
         const basePrompt = responseJson.prompt;
-        const finalPrompt = `${basePrompt} *don't change the face that I attached, make sure it's 100% similar`;
+        const qualityEnhancer = 'very contrasting with the bright subject. Maintain the exact facial and hair details of the uploaded reference photo, maintain realistic skin texture, natural expressions, and photorealistic quality';
+        const faceInstruction = "*don't change the face that I attached, make sure it's 100% similar";
+        
+        const finalPrompt = `${basePrompt}, ${qualityEnhancer}, ${faceInstruction}`;
 
         return finalPrompt;
 
