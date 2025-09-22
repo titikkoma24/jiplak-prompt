@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Part, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Type, Part, GenerateContentResponse, Modality } from "@google/genai";
 
 // Helper function to convert File to a Gemini API Part
 const fileToGenerativePart = async (file: File): Promise<Part> => {
@@ -91,5 +91,51 @@ export const translateText = async (text: string, targetLanguage: 'Indonesian' |
     } catch (error) {
         console.error(`Error translating text to ${targetLanguage}:`, error);
         throw new Error(`Failed to translate text. Please try again.`);
+    }
+};
+
+export interface NanoResult {
+    type: 'text' | 'image';
+    content: string;
+}
+
+/**
+ * Edits images using a prompt with the Nano Banana model.
+ */
+export const generateWithNanoBanana = async (imageFiles: File[], prompt: string): Promise<NanoResult[]> => {
+    try {
+        const imageParts = await Promise.all(imageFiles.map(fileToGenerativePart));
+        const textPart = { text: prompt };
+
+        const result: GenerateContentResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: {
+                parts: [...imageParts, textPart],
+            },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+
+        const responseParts = result.candidates?.[0]?.content?.parts || [];
+        if (responseParts.length === 0) {
+            throw new Error("The model did not return any content. The request may have been blocked.");
+        }
+        
+        const output: NanoResult[] = [];
+        for (const part of responseParts) {
+            if (part.text) {
+                output.push({ type: 'text', content: part.text });
+            } else if (part.inlineData?.data && part.inlineData?.mimeType) {
+                const imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                output.push({ type: 'image', content: imageUrl });
+            }
+        }
+        return output;
+
+    } catch (error) {
+        console.error("Error generating with Nano Banana:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during image generation.";
+        throw new Error(errorMessage);
     }
 };

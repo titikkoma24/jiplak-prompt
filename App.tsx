@@ -1,13 +1,18 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import ImageUploader from './components/ImageUploader';
 import Loader from './components/Loader';
 import PromptEditor from './components/PromptEditor';
 import AspectRatioSelector from './components/AspectRatioSelector';
+import NanoBanana from './components/NanoBanana';
 import { generateDetailedPrompt } from './services/geminiService';
 import toast, { Toaster } from 'react-hot-toast';
 
+type Tab = 'jiplak' | 'nano';
+
 const App: React.FC = () => {
+    const [activeTab, setActiveTab] = useState<Tab>('jiplak');
+
+    // State for JIPLAK_PROMPT feature
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -67,7 +72,7 @@ const App: React.FC = () => {
 
     }, [detailedPrompt, aspectRatio]);
 
-    const renderContent = () => {
+    const renderJiplakContent = () => {
         if (isLoading) {
             return (
                 <div className="flex flex-col items-center gap-4">
@@ -135,6 +140,21 @@ const App: React.FC = () => {
         return <ImageUploader onImageUpload={handleImageUpload} isLoading={isLoading} />;
     };
     
+    const TabButton: React.FC<{tabId: Tab; title: string;}> = ({ tabId, title }) => (
+        <button
+            onClick={() => setActiveTab(tabId)}
+            role="tab"
+            aria-selected={activeTab === tabId}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed ${
+                activeTab === tabId
+                ? 'bg-cyan-500 text-white focus:ring-cyan-400'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600 focus:ring-cyan-500'
+            }`}
+        >
+            {title}
+        </button>
+    );
+
     return (
         <div className="bg-slate-900 min-h-screen text-white font-sans">
             <Toaster position="top-center" toastOptions={{
@@ -152,14 +172,18 @@ const App: React.FC = () => {
                         JIPLAK_PROMPT 2.0
                     </h1>
                     <p className="mt-4 max-w-3xl mx-auto text-lg text-slate-400">
-                       Create ultra-detailed prompts from any image.
+                       Create ultra-detailed prompts or edit images with AI.
                     </p>
                 </div>
             </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+                <div className="flex justify-center mb-6 gap-2" role="tablist" aria-label="App features">
+                    <TabButton tabId="jiplak" title="JIPLAK_PROMPT" />
+                    <TabButton tabId="nano" title="NANO BANANA" />
+                </div>
                 <div className="w-full max-w-3xl mx-auto bg-slate-800/50 rounded-2xl shadow-2xl shadow-cyan-500/10 border border-slate-700 p-6 md:p-8">
-                    {renderContent()}
+                    {activeTab === 'jiplak' ? renderJiplakContent() : <NanoBanana />}
                 </div>
             </main>
         </div>
