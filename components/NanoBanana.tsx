@@ -34,9 +34,16 @@ const NanoBanana: React.FC = () => {
             setResults(generatedResults);
             toast.success('Edit generated successfully!');
         } catch (err: any) {
-            const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-            setError(errorMessage);
-            toast.error(errorMessage);
+            const rawMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+            let friendlyErrorMessage = rawMessage;
+
+            // Check for specific quota error and provide a user-friendly message
+            if (rawMessage.includes('RESOURCE_EXHAUSTED') || rawMessage.toLowerCase().includes('quota')) {
+                friendlyErrorMessage = 'Anda telah melebihi batas penggunaan gratis untuk fitur ini. Silakan coba lagi nanti atau periksa paket dan tagihan Anda di Google AI Studio.';
+            }
+
+            setError(friendlyErrorMessage);
+            toast.error(friendlyErrorMessage, { duration: 6000 }); // Show toast longer for important errors
         } finally {
             setIsLoading(false);
         }
