@@ -224,10 +224,10 @@ const App: React.FC = () => {
                             />
                             <div className="flex flex-col">
                                 <label htmlFor="faceReference" className="text-sm font-medium text-slate-300 select-none cursor-pointer">
-                                    Append prompt for face reference
+                                    ceklis ini jika wajah akan diganti dengan wajah kita
                                 </label>
                                 <p id="faceReference-description" className="text-xs text-slate-400">
-                                    Check this if you plan to use a face reference photo.
+                                    Ceklis jika kamu berencana menggunakan foto referensi wajah.
                                 </p>
                             </div>
                         </div>
