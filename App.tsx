@@ -200,7 +200,7 @@ const App: React.FC = () => {
                      <div>
                         <img src={imagePreview} alt="Image preview" className="rounded-lg shadow-lg" />
                         <button onClick={() => handleImageUpload(null)} className="mt-4 text-sm text-slate-400 hover:text-white transition-colors duration-200">
-                            &#8592; Use a different image
+                            &#8592; Ganti gambar lain
                         </button>
                     </div>
 
@@ -233,18 +233,21 @@ const App: React.FC = () => {
                         </div>
 
                         <div className="space-y-3">
-                            <label className="text-base font-medium text-slate-300">Aspect Ratio</label>
+                            <label className="text-base font-medium text-slate-300">Ukuran/Bentuk Layar</label>
                             <AspectRatioSelector selectedRatio={aspectRatio} onSelectRatio={setAspectRatio} disabled={isLoading} />
                         </div>
                     </div>
 
-                    <div className="space-y-6">
+                    <div className="space-y-2">
                         <PromptEditor
-                            label="Final Detailed Prompt"
+                            label="Hasil Jiplak Promptnya"
                             prompt={finalPrompt}
                             onPromptChange={(newPrompt) => setFinalPrompt(newPrompt)}
                             isLoading={isLoading}
                         />
+                        <p className="text-sm text-center text-slate-400 px-4">
+                            Kamu bisa rubah ulang aspek baju ataupun rambut juga accesoris di kolom input ini
+                        </p>
                     </div>
 
                      <div className="mt-2 text-center border-t border-slate-700 pt-6">

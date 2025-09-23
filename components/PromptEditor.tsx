@@ -114,7 +114,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ label, prompt, onPromptChan
           aria-label={`Editable prompt for ${label}`}
         />
         <p className="text-xs text-slate-500 mt-2 text-right">
-            Append <code className="bg-slate-700 px-1 rounded-sm font-semibold">.</code> for ID or <code className="bg-slate-700 px-1 rounded-sm font-semibold">..</code> for EN translation
+            Ketik <code className="bg-slate-700 px-1 rounded-sm font-semibold">.</code> untuk terjemahkan ke Bahasa Indonesia atau <code className="bg-slate-700 px-1 rounded-sm font-semibold">..</code> untuk ke Bahasa Inggris
         </p>
       </div>
     </div>
