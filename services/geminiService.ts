@@ -59,10 +59,7 @@ Your entire output must be a single JSON object with one key, "prompt", containi
         const responseText = result.text;
         const responseJson = JSON.parse(responseText) as { prompt: string };
         
-        const basePrompt = responseJson.prompt;
-        const finalPrompt = `${basePrompt} (do not change facial details, according to the reference photo uploaded) contrast beautifully with a well-lit subject. Maintain the exact facial and hair details of the reference photo uploaded, while maintaining realistic skin texture, natural expressions, and photorealistic quality.`;
-
-        return finalPrompt;
+        return responseJson.prompt;
 
     } catch (error) {
         console.error("Error generating detailed prompt:", error);

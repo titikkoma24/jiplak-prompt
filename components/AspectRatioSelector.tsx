@@ -6,7 +6,7 @@ interface AspectRatioSelectorProps {
   disabled: boolean;
 }
 
-const RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'];
+const RATIOS = ['Original', '1:1', '16:9', '9:16', '4:3', '3:4'];
 
 const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({ selectedRatio, onSelectRatio, disabled }) => {
   return (
