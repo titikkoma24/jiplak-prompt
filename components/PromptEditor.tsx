@@ -1,6 +1,7 @@
 import React, { useState, useEffect, FC } from 'react';
 import { translateText } from '../services/geminiService';
 import toast from 'react-hot-toast';
+import LanguageToggle from './LanguageToggle';
 
 interface PromptEditorProps {
   label: string;
@@ -32,6 +33,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ label, prompt, onPromptChan
   const [currentPrompt, setCurrentPrompt] = useState(prompt);
   const [copied, setCopied] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [targetLang, setTargetLang] = useState<'ID' | 'EN'>('ID');
 
   useEffect(() => {
     setCurrentPrompt(prompt);
@@ -44,43 +46,26 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ label, prompt, onPromptChan
     setTimeout(() => setCopied(false), 2000);
   };
   
-  const handleTextChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setCurrentPrompt(newValue);
-    
-    // Defer calling onPromptChange to avoid re-renders during translation
-    if (!newValue.endsWith('.') && !newValue.endsWith('..')) {
-      onPromptChange(newValue);
-    }
+    onPromptChange(newValue);
+  };
+  
+  const handleTranslate = async () => {
+    if (!currentPrompt.trim() || isTranslating) return;
 
-    if (isTranslating) return;
-
-    if (newValue.endsWith('..')) {
-        setIsTranslating(true);
-        const textToTranslate = newValue.slice(0, -2).trim();
-        try {
-            const translated = await translateText(textToTranslate, 'English');
-            setCurrentPrompt(translated);
-            onPromptChange(translated);
-        } catch (err) {
-            toast.error('Translation to English failed.');
-            setCurrentPrompt(textToTranslate); // Revert on failure
-        } finally {
-            setIsTranslating(false);
-        }
-    } else if (newValue.endsWith('.') && !newValue.endsWith('..')) {
-        setIsTranslating(true);
-        const textToTranslate = newValue.slice(0, -1).trim();
-        try {
-            const translated = await translateText(textToTranslate, 'Indonesian');
-            setCurrentPrompt(translated);
-            onPromptChange(translated);
-        } catch (err) {
-            toast.error('Translation to Indonesian failed.');
-            setCurrentPrompt(textToTranslate); // Revert on failure
-        } finally {
-            setIsTranslating(false);
-        }
+    setIsTranslating(true);
+    try {
+        const langToTranslate = targetLang === 'ID' ? 'Indonesian' : 'English';
+        const translated = await translateText(currentPrompt, langToTranslate);
+        setCurrentPrompt(translated);
+        onPromptChange(translated);
+        toast.success(`Translated to ${langToTranslate}!`);
+    } catch (err) {
+        toast.error(`Translation to ${targetLang} failed.`);
+    } finally {
+        setIsTranslating(false);
     }
   };
 
@@ -90,21 +75,18 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ label, prompt, onPromptChan
       <div className="p-4 sm:p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-bold text-slate-100">{label}</h3>
-          <div className="flex items-center gap-3">
-            {isTranslating && <TranslateLoader />}
-            <button
-                onClick={handleCopy}
-                disabled={isLoading || isTranslating}
-                className={`flex items-center space-x-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 disabled:opacity-50 ${
-                copied
-                    ? 'bg-green-600 text-white focus:ring-green-500'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600 focus:ring-cyan-500'
-                }`}
-            >
-                <CopyIcon copied={copied} />
-                <span>{copied ? 'Copied!' : 'Copy'}</span>
-            </button>
-          </div>
+          <button
+              onClick={handleCopy}
+              disabled={isLoading || isTranslating}
+              className={`flex items-center space-x-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 disabled:opacity-50 ${
+              copied
+                  ? 'bg-green-600 text-white focus:ring-green-500'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600 focus:ring-cyan-500'
+              }`}
+          >
+              <CopyIcon copied={copied} />
+              <span>{copied ? 'Copied!' : 'Copy'}</span>
+          </button>
         </div>
         <textarea
           value={currentPrompt}
@@ -113,9 +95,20 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ label, prompt, onPromptChan
           className="w-full h-32 text-slate-300 leading-relaxed font-mono text-sm bg-slate-900/50 p-4 rounded-md resize-y border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
           aria-label={`Editable prompt for ${label}`}
         />
-        <p className="text-xs text-slate-500 mt-2 text-right">
-            Ketik <code className="bg-slate-700 px-1 rounded-sm font-semibold">.</code> untuk terjemahkan ke Bahasa Indonesia atau <code className="bg-slate-700 px-1 rounded-sm font-semibold">..</code> untuk ke Bahasa Inggris
-        </p>
+        <div className="flex items-center justify-end gap-3 mt-2">
+            <LanguageToggle
+                selectedLanguage={targetLang}
+                onLanguageChange={setTargetLang}
+                disabled={isTranslating || isLoading}
+            />
+            <button
+                onClick={handleTranslate}
+                disabled={isLoading || isTranslating || !currentPrompt.trim()}
+                className="flex items-center justify-center min-w-[90px] px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 bg-slate-700 text-slate-300 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-cyan-500 disabled:opacity-50"
+            >
+                {isTranslating ? <TranslateLoader /> : 'Translate'}
+            </button>
+        </div>
       </div>
     </div>
   );

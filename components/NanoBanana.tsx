@@ -3,6 +3,7 @@ import MultiImageUploader from './MultiImageUploader';
 import { generateWithNanoBanana, NanoResult, translateText } from '../services/geminiService';
 import toast from 'react-hot-toast';
 import Loader from './Loader';
+import LanguageToggle from './LanguageToggle';
 
 const NanoBanana: React.FC = () => {
     const [files, setFiles] = useState<File[]>([]);
@@ -10,6 +11,7 @@ const NanoBanana: React.FC = () => {
     const [resolution, setResolution] = useState<string>('Default');
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isTranslating, setIsTranslating] = useState<boolean>(false);
+    const [targetLang, setTargetLang] = useState<'ID' | 'EN'>('ID');
     const [results, setResults] = useState<NanoResult[]>([]);
     const [error, setError] = useState<string | null>(null);
 
@@ -27,31 +29,22 @@ const NanoBanana: React.FC = () => {
         toast.success('Image saved!');
     };
 
-    const handlePromptChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const newValue = e.target.value;
-        setPrompt(newValue);
+    const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setPrompt(e.target.value);
+    };
 
-        if (isTranslating) return;
-
-        // Translate to Indonesian if text ends with a single '.'
-        if (newValue.endsWith('.') && !newValue.endsWith('..')) {
-            setIsTranslating(true);
-            const textToTranslate = newValue.slice(0, -1).trim();
-            
-            if (textToTranslate) {
-                try {
-                    const translated = await translateText(textToTranslate, 'Indonesian');
-                    setPrompt(translated);
-                    toast.success('Translated to Indonesian!');
-                } catch (err) {
-                    toast.error('Translation to Indonesian failed.');
-                    setPrompt(textToTranslate); // Revert on failure
-                } finally {
-                    setIsTranslating(false);
-                }
-            } else {
-                setIsTranslating(false);
-            }
+    const handleTranslate = async () => {
+        if (!prompt.trim() || isTranslating) return;
+        setIsTranslating(true);
+        try {
+            const langToTranslate = targetLang === 'ID' ? 'Indonesian' : 'English';
+            const translated = await translateText(prompt, langToTranslate);
+            setPrompt(translated);
+            toast.success(`Translated to ${langToTranslate}!`);
+        } catch (err) {
+            toast.error(`Translation to ${targetLang} failed.`);
+        } finally {
+            setIsTranslating(false);
         }
     };
 
@@ -101,6 +94,7 @@ const NanoBanana: React.FC = () => {
     };
     
     const resolutionOptions = ['Default', 'HD', '4K', '8K'];
+    const TranslateLoader: React.FC = () => <div className="w-5 h-5 border-2 border-slate-500 border-t-cyan-400 rounded-full animate-spin"></div>;
 
     return (
         <div className="flex flex-col gap-8 animate-fade-in">
@@ -118,7 +112,6 @@ const NanoBanana: React.FC = () => {
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center justify-between">
                             <label htmlFor="nano-prompt" className="text-base font-medium text-slate-300">Input Prompt</label>
-                            {isTranslating && <div className="w-5 h-5 border-2 border-slate-500 border-t-cyan-400 rounded-full animate-spin" role="status" aria-label="Translating..."></div>}
                         </div>
                         <textarea
                             id="nano-prompt"
@@ -128,9 +121,20 @@ const NanoBanana: React.FC = () => {
                             placeholder="e.g., 'add a birthday hat on the person' or 'change the background to a beach'"
                             className="w-full h-full min-h-[150px] text-slate-300 leading-relaxed text-sm bg-slate-900/50 p-4 rounded-md resize-y border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
                         />
-                         <p className="text-xs text-slate-500 text-right">
-                            Append <code className="bg-slate-700 px-1 rounded-sm font-semibold">.</code> to translate to Indonesian
-                        </p>
+                         <div className="flex items-center justify-end gap-3 mt-1">
+                            <LanguageToggle
+                                selectedLanguage={targetLang}
+                                onLanguageChange={setTargetLang}
+                                disabled={isTranslating || isLoading}
+                            />
+                            <button
+                                onClick={handleTranslate}
+                                disabled={isLoading || isTranslating || !prompt.trim()}
+                                className="flex items-center justify-center min-w-[90px] px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 bg-slate-700 text-slate-300 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-cyan-500 disabled:opacity-50"
+                            >
+                                {isTranslating ? <TranslateLoader /> : 'Translate'}
+                            </button>
+                        </div>
                     </div>
                      <div className="flex flex-col gap-2">
                         <label className="text-base font-medium text-slate-300">Output Resolution</label>
