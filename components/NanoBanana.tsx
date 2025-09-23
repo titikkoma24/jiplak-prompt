@@ -1,19 +1,59 @@
 import React, { useState, useCallback } from 'react';
 import MultiImageUploader from './MultiImageUploader';
-import { generateWithNanoBanana, NanoResult } from '../services/geminiService';
+import { generateWithNanoBanana, NanoResult, translateText } from '../services/geminiService';
 import toast from 'react-hot-toast';
 import Loader from './Loader';
 
 const NanoBanana: React.FC = () => {
     const [files, setFiles] = useState<File[]>([]);
     const [prompt, setPrompt] = useState<string>('');
+    const [resolution, setResolution] = useState<string>('Default');
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isTranslating, setIsTranslating] = useState<boolean>(false);
     const [results, setResults] = useState<NanoResult[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     const handleFilesChange = useCallback((newFiles: File[]) => {
         setFiles(newFiles);
     }, []);
+    
+    const handleDownload = (dataUrl: string, filename: string) => {
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Image saved!');
+    };
+
+    const handlePromptChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newValue = e.target.value;
+        setPrompt(newValue);
+
+        if (isTranslating) return;
+
+        // Translate to Indonesian if text ends with a single '.'
+        if (newValue.endsWith('.') && !newValue.endsWith('..')) {
+            setIsTranslating(true);
+            const textToTranslate = newValue.slice(0, -1).trim();
+            
+            if (textToTranslate) {
+                try {
+                    const translated = await translateText(textToTranslate, 'Indonesian');
+                    setPrompt(translated);
+                    toast.success('Translated to Indonesian!');
+                } catch (err) {
+                    toast.error('Translation to Indonesian failed.');
+                    setPrompt(textToTranslate); // Revert on failure
+                } finally {
+                    setIsTranslating(false);
+                }
+            } else {
+                setIsTranslating(false);
+            }
+        }
+    };
 
     const handleSubmit = async () => {
         if (files.length === 0) {
@@ -30,24 +70,37 @@ const NanoBanana: React.FC = () => {
         setResults([]);
         
         try {
-            const generatedResults = await generateWithNanoBanana(files, prompt);
+            const promptText = prompt.trim();
+            let finalPrompt = promptText;
+            const resolutionTextMap: { [key: string]: string } = {
+                'HD': 'HD, 1080p, high quality',
+                '4K': '4K resolution, photorealistic, ultra-detailed',
+                '8K': '8K resolution, masterpiece, photorealistic, ultra-detailed',
+            };
+
+            if (resolution !== 'Default' && resolutionTextMap[resolution]) {
+                finalPrompt = `${promptText}, ${resolutionTextMap[resolution]}`;
+            }
+
+            const generatedResults = await generateWithNanoBanana(files, finalPrompt);
             setResults(generatedResults);
             toast.success('Edit generated successfully!');
         } catch (err: any) {
             const rawMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
             let friendlyErrorMessage = rawMessage;
 
-            // Check for specific quota error and provide a user-friendly message
             if (rawMessage.includes('RESOURCE_EXHAUSTED') || rawMessage.toLowerCase().includes('quota')) {
                 friendlyErrorMessage = 'Anda telah melebihi batas penggunaan gratis untuk fitur ini. Silakan coba lagi nanti atau periksa paket dan tagihan Anda di Google AI Studio.';
             }
 
             setError(friendlyErrorMessage);
-            toast.error(friendlyErrorMessage, { duration: 6000 }); // Show toast longer for important errors
+            toast.error(friendlyErrorMessage, { duration: 6000 });
         } finally {
             setIsLoading(false);
         }
     };
+    
+    const resolutionOptions = ['Default', 'HD', '4K', '8K'];
 
     return (
         <div className="flex flex-col gap-8 animate-fade-in">
@@ -61,26 +114,54 @@ const NanoBanana: React.FC = () => {
                     <label className="text-base font-medium text-slate-300">Upload Photos (up to 20)</label>
                     <MultiImageUploader onFilesChange={handleFilesChange} maxFiles={20} />
                 </div>
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="nano-prompt" className="text-base font-medium text-slate-300">Input Prompt</label>
-                    <textarea
-                        id="nano-prompt"
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        disabled={isLoading}
-                        placeholder="e.g., 'add a birthday hat on the person' or 'change the background to a beach'"
-                        className="w-full h-full min-h-[150px] text-slate-300 leading-relaxed text-sm bg-slate-900/50 p-4 rounded-md resize-y border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-                    />
+                <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                            <label htmlFor="nano-prompt" className="text-base font-medium text-slate-300">Input Prompt</label>
+                            {isTranslating && <div className="w-5 h-5 border-2 border-slate-500 border-t-cyan-400 rounded-full animate-spin" role="status" aria-label="Translating..."></div>}
+                        </div>
+                        <textarea
+                            id="nano-prompt"
+                            value={prompt}
+                            onChange={handlePromptChange}
+                            disabled={isLoading || isTranslating}
+                            placeholder="e.g., 'add a birthday hat on the person' or 'change the background to a beach'"
+                            className="w-full h-full min-h-[150px] text-slate-300 leading-relaxed text-sm bg-slate-900/50 p-4 rounded-md resize-y border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
+                        />
+                         <p className="text-xs text-slate-500 text-right">
+                            Append <code className="bg-slate-700 px-1 rounded-sm font-semibold">.</code> to translate to Indonesian
+                        </p>
+                    </div>
+                     <div className="flex flex-col gap-2">
+                        <label className="text-base font-medium text-slate-300">Output Resolution</label>
+                         <div className="flex flex-wrap gap-2" role="group" aria-label="Output Resolution">
+                            {resolutionOptions.map(res => (
+                                <button
+                                    key={res}
+                                    type="button"
+                                    onClick={() => setResolution(res)}
+                                    disabled={isLoading || isTranslating}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                        resolution === res
+                                        ? 'bg-cyan-500 text-white focus:ring-cyan-400'
+                                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600 focus:ring-cyan-500'
+                                    }`}
+                                >
+                                    {res}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div className="text-center">
                 <button
                     onClick={handleSubmit}
-                    disabled={isLoading}
+                    disabled={isLoading || isTranslating}
                     className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:from-cyan-400 hover:to-indigo-500 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isLoading ? 'Generating...' : 'Generate'}
+                    {isLoading ? 'Generating...' : (isTranslating ? 'Translating...' : 'Generate')}
                 </button>
             </div>
 
@@ -98,7 +179,21 @@ const NanoBanana: React.FC = () => {
                     <div className="bg-slate-900/50 p-4 rounded-lg space-y-4">
                         {results.map((result, index) => {
                             if (result.type === 'image') {
-                                return <img key={index} src={result.content} alt={`Generated image ${index + 1}`} className="rounded-lg shadow-lg mx-auto max-w-full" />;
+                                return (
+                                    <div key={index} className="relative group">
+                                        <img src={result.content} alt={`Generated image ${index + 1}`} className="rounded-lg shadow-lg mx-auto max-w-full" />
+                                         <button
+                                            onClick={() => handleDownload(result.content, `jiplak-nano-result-${index + 1}.png`)}
+                                            className="absolute bottom-4 right-4 inline-flex items-center gap-2 px-4 py-2 bg-slate-800/80 backdrop-blur-sm border border-slate-600 text-white font-semibold rounded-lg shadow-md hover:bg-slate-700/90 transition-all duration-200 transform opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            aria-label="Save image"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                            <span>Save</span>
+                                        </button>
+                                    </div>
+                                );
                             }
                             return <p key={index} className="text-slate-300 whitespace-pre-wrap">{result.content}</p>;
                         })}

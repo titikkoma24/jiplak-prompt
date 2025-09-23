@@ -25,17 +25,14 @@ export const generateDetailedPrompt = async (imageFile: File): Promise<string> =
         const imagePart = await fileToGenerativePart(imageFile);
         const model = 'gemini-2.5-flash';
 
-        const instructionText = `Analyze the people in the attached image, focusing on their clothing and appearance. Then, generate a single, highly detailed, photorealistic master prompt for an image generation AI by placing them in the following scene.
-SCENE DESCRIPTION:
-Make the two people look as if they met in an alley in a shabby rented house in the afternoon, there are clotheslines and several trash cans.
-COMPOSITION:
-Make the view from below (low angle) showing them both squatting with their faces looking at the camera with a surprised expression. Make them far apart.
-SUBJECT DETAILS:
-The adult man/woman wears the clothes and shoes from the provided photo reference. The child wears a plain white t-shirt, cream-colored shorts and flip-flops, and is holding a toy car made of an orange peel. The adult's hand is holding the child's lollipop.
-STYLE & QUALITY:
-Follow these instructions precisely for the final prompt: (do not change the face from the attached reference photo). The scene must have 'very contrast with the bright subject'. Maintain the exact facial and hair details of the uploaded reference photo, maintain realistic skin texture, natural expressions, and photorealistic quality.
+        const instructionText = `Analyze the attached image. Your task is to generate a highly detailed, photorealistic master prompt that describes the image in its entirety, so it can be perfectly recreated by an image generation AI. The final recreation will use a different person's face as a reference, which will be provided later.
 
-Your entire output must be a single JSON object with one key, "prompt", containing the final generated master prompt.`;
+Therefore, you must describe everything EXCEPT for the facial features. Focus on:
+- SCENE & BACKGROUND: Describe the environment, location, time of day, and any objects present.
+- SUBJECT(S): Describe their pose, body language, body type, clothing style and details, accessories, and hair style/color.
+- COMPOSITION & LIGHTING: Describe the camera angle, shot type (e.g., full-shot, portrait), lighting conditions (e.g., soft light, direct sunlight), and overall mood.
+
+Your entire output must be a single JSON object with one key, "prompt", containing the final generated master prompt. Do not include any details about the face.`;
 
         const contents = {
             parts: [
@@ -63,7 +60,7 @@ Your entire output must be a single JSON object with one key, "prompt", containi
         const responseJson = JSON.parse(responseText) as { prompt: string };
         
         const basePrompt = responseJson.prompt;
-        const finalPrompt = `${basePrompt} *don't change the face that I attached, make sure it's 100% similar`;
+        const finalPrompt = `${basePrompt} (do not change facial details, according to the reference photo uploaded) contrast beautifully with a well-lit subject. Maintain the exact facial and hair details of the reference photo uploaded, while maintaining realistic skin texture, natural expressions, and photorealistic quality.`;
 
         return finalPrompt;
 
