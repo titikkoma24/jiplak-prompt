@@ -23,6 +23,7 @@ const App: React.FC = () => {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [detailedPrompt, setDetailedPrompt] = useState<string | null>(null);
+    const [subjectCount, setSubjectCount] = useState<number>(0);
     const [finalPrompt, setFinalPrompt] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [aspectRatio, setAspectRatio] = useState<string>('Original');
@@ -92,6 +93,7 @@ const App: React.FC = () => {
         setImageFile(null);
         setImagePreview(null);
         setDetailedPrompt(null);
+        setSubjectCount(0);
         setFinalPrompt('');
         setError(null);
         setAspectRatio('Original');
@@ -108,6 +110,7 @@ const App: React.FC = () => {
         setIsLoading(true);
         setError(null);
         setDetailedPrompt(null);
+        setSubjectCount(0);
         setFinalPrompt('');
         setImageFile(file);
         
@@ -129,8 +132,9 @@ const App: React.FC = () => {
         reader.readAsDataURL(file);
         
         try {
-            const generatedPrompt = await generateDetailedPrompt(file);
+            const { prompt: generatedPrompt, subjectCount: count } = await generateDetailedPrompt(file);
             setDetailedPrompt(generatedPrompt);
+            setSubjectCount(count);
             toast.success('Scene prompt generated!');
         } catch (err: any) {
             const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
@@ -151,7 +155,11 @@ const App: React.FC = () => {
         
         let currentPrompt = detailedPrompt;
         if (useFaceReference) {
-            currentPrompt = `${detailedPrompt} (do not change facial details, according to the reference photo uploaded) contrast beautifully with a well-lit subject. Maintain the exact facial and hair details of the reference photo uploaded, while maintaining realistic skin texture, natural expressions, and photorealistic quality.`;
+            if (subjectCount > 1) {
+                currentPrompt = `${detailedPrompt} (do not change facial details, use the reference photos provided for each corresponding subject) contrast beautifully with a well-lit scene. Maintain the exact facial and hair details from the reference photos for each subject, while maintaining realistic skin texture, natural expressions, and photorealistic quality.`;
+            } else {
+                 currentPrompt = `${detailedPrompt} (do not change facial details, according to the reference photo uploaded) contrast beautifully with a well-lit subject. Maintain the exact facial and hair details of the reference photo uploaded, while maintaining realistic skin texture, natural expressions, and photorealistic quality.`;
+            }
         }
 
         const currentAr = aspectRatio === 'Original' ? originalAspectRatio : aspectRatio;
@@ -163,7 +171,7 @@ const App: React.FC = () => {
             setFinalPrompt(currentPrompt.trim());
         }
 
-    }, [detailedPrompt, aspectRatio, originalAspectRatio, useFaceReference]);
+    }, [detailedPrompt, subjectCount, aspectRatio, originalAspectRatio, useFaceReference]);
 
     const renderJiplakContent = () => {
         if (isLoading) {
@@ -195,6 +203,14 @@ const App: React.FC = () => {
                             &#8592; Use a different image
                         </button>
                     </div>
+
+                    {subjectCount > 1 && (
+                        <div className="p-3 bg-indigo-900/50 border border-indigo-700 rounded-lg text-center animate-fade-in">
+                            <p className="text-indigo-300 text-sm">
+                                <span className="font-bold">💡 AI Pro Tip:</span> We've detected <span className="font-bold">{subjectCount} people</span>. The prompt describes each one. For best results, use a separate face reference for each person.
+                            </p>
+                        </div>
+                    )}
 
                     <div className="space-y-5">
                         <div className="flex items-center space-x-3 bg-slate-700/50 p-3 rounded-lg">
@@ -275,7 +291,7 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className="bg-slate-900 min-h-screen text-white font-sans">
+        <div className="bg-slate-900 min-h-screen text-white font-sans flex flex-col">
             <Toaster position="top-center" toastOptions={{
                 className: '',
                 style: {
@@ -285,38 +301,45 @@ const App: React.FC = () => {
                     background: '#1e293b'
                 },
             }} />
-            <header className="py-6">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-                    <div className="text-center">
-                        <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 sm:text-5xl md:text-6xl">
-                            JIPLAK_PROMPT 2.0
-                        </h1>
-                        <p className="mt-4 max-w-3xl mx-auto text-lg text-slate-400">
-                        Create ultra-detailed prompts or edit images with AI.
-                        </p>
+            <div className="flex-grow">
+                <header className="py-6">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                        <div className="text-center">
+                            <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 sm:text-5xl md:text-6xl">
+                                JIPLAK_PROMPT
+                            </h1>
+                            <p className="mt-4 max-w-3xl mx-auto text-lg text-slate-400">
+                                Lampirkan gambar yang mau kamu buat ulang
+                            </p>
+                        </div>
+                        <button 
+                            onClick={handleLogout}
+                            className="absolute top-1/2 right-4 -translate-y-1/2 sm:right-6 lg:right-8 text-slate-400 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
+                            aria-label="Logout"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            <span>Logout</span>
+                        </button>
                     </div>
-                    <button 
-                        onClick={handleLogout}
-                        className="absolute top-1/2 right-4 -translate-y-1/2 sm:right-6 lg:right-8 text-slate-400 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
-                        aria-label="Logout"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        <span>Logout</span>
-                    </button>
-                </div>
-            </header>
+                </header>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-                <div className="flex justify-center mb-6 gap-2" role="tablist" aria-label="App features">
-                    <TabButton tabId="jiplak" title="JIPLAK_PROMPT" />
-                    <TabButton tabId="nano" title="NANO BANANA" disabled={authStatus === 'limited'} />
-                </div>
-                <div className="w-full max-w-3xl mx-auto bg-slate-800/50 rounded-2xl shadow-2xl shadow-cyan-500/10 border border-slate-700 p-6 md:p-8">
-                    {activeTab === 'jiplak' ? renderJiplakContent() : <NanoBanana />}
-                </div>
-            </main>
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+                    <div className="flex justify-center mb-6 gap-2" role="tablist" aria-label="App features">
+                        <TabButton tabId="jiplak" title="JIPLAK_PROMPT" />
+                        <TabButton tabId="nano" title="NANO BANANA" disabled={authStatus === 'limited'} />
+                    </div>
+                    <div className="w-full max-w-3xl mx-auto bg-slate-800/50 rounded-2xl shadow-2xl shadow-cyan-500/10 border border-slate-700 p-6 md:p-8">
+                        {activeTab === 'jiplak' ? renderJiplakContent() : <NanoBanana />}
+                    </div>
+                </main>
+            </div>
+             <footer className="text-center py-6 px-4">
+                <p className="text-sm text-slate-500">
+                    Developer : <a href="https://www.instagram.com/zakiromdoni/" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-400 transition-colors">zakiromdoni</a>
+                </p>
+            </footer>
         </div>
     );
 };

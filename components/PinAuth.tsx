@@ -16,10 +16,10 @@ const PinAuth: React.FC<PinAuthProps> = ({ onPinSubmit, error }) => {
   };
 
   return (
-    <div className="bg-slate-900 min-h-screen flex flex-col items-center justify-center text-white font-sans p-4">
+    <div className="bg-slate-900 min-h-screen flex flex-col items-center justify-center text-white font-sans p-4 relative">
       <div className="w-full max-w-sm text-center">
         <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 sm:text-5xl">
-          JIPLAK_PROMPT 2.0
+          JIPLAK_PROMPT
         </h1>
         <p className="mt-4 text-lg text-slate-400">
           Please enter your PIN to access the application.
@@ -52,6 +52,11 @@ const PinAuth: React.FC<PinAuthProps> = ({ onPinSubmit, error }) => {
           </div>
         </form>
       </div>
+      <footer className="absolute bottom-6 left-0 right-0 text-center">
+        <p className="text-sm text-slate-500">
+            Developer : <a href="https://www.instagram.com/zakiromdoni/" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-400 transition-colors">zakiromdoni</a>
+        </p>
+      </footer>
     </div>
   );
 };
