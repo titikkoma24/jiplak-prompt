@@ -11,6 +11,38 @@ import toast, { Toaster } from 'react-hot-toast';
 type Tab = 'jiplak' | 'nano';
 type AuthStatus = 'unauthenticated' | 'limited' | 'full';
 
+interface CustomizationDetails {
+    hair: string;
+    gender: string;
+    shirt: string;
+    pants: string;
+    shoes: string;
+    accessories: string;
+}
+
+const initialCustomizations: CustomizationDetails = { hair: '', gender: '', shirt: '', pants: '', shoes: '', accessories: '' };
+
+
+const CustomizationInput: React.FC<{
+    id: string;
+    label: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    placeholder: string;
+}> = ({ id, label, value, onChange, placeholder }) => (
+    <div>
+        <label htmlFor={id} className="block text-sm font-medium text-slate-400 mb-1">{label}</label>
+        <input 
+            id={id} 
+            type="text" 
+            value={value} 
+            onChange={onChange} 
+            placeholder={placeholder} 
+            className="w-full bg-slate-700/50 rounded-md border-slate-600 text-sm p-2 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors" 
+        />
+    </div>
+);
+
 const App: React.FC = () => {
     // Auth state
     const [authStatus, setAuthStatus] = useState<AuthStatus>('unauthenticated');
@@ -30,6 +62,10 @@ const App: React.FC = () => {
     const [originalAspectRatio, setOriginalAspectRatio] = useState<string | null>(null);
     const [useFaceReference, setUseFaceReference] = useState<boolean>(true);
     const [useSeparateReferences, setUseSeparateReferences] = useState<boolean>(true);
+
+    // State for customizations
+    const [customizationInputs, setCustomizationInputs] = useState<CustomizationDetails>(initialCustomizations);
+    const [appliedCustomizations, setAppliedCustomizations] = useState<CustomizationDetails>(initialCustomizations);
     
     // Helper to calculate greatest common divisor for aspect ratio
     const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -101,6 +137,8 @@ const App: React.FC = () => {
         setOriginalAspectRatio(null);
         setUseFaceReference(true);
         setUseSeparateReferences(true);
+        setCustomizationInputs(initialCustomizations);
+        setAppliedCustomizations(initialCustomizations);
     };
 
     const handleImageUpload = useCallback(async (file: File | null) => {
@@ -148,36 +186,60 @@ const App: React.FC = () => {
             setIsLoading(false);
         }
     }, []);
+
+    const handleCustomizationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const field = e.target.id.split('-')[0] as keyof CustomizationDetails;
+        setCustomizationInputs(prev => ({ ...prev, [field]: e.target.value }));
+    };
+
+    const handleApplyCustomizations = () => {
+        setAppliedCustomizations(customizationInputs);
+        toast.success('Perubahan diterapkan pada prompt!');
+    };
     
     useEffect(() => {
         if (!detailedPrompt) {
             setFinalPrompt('');
             return;
         }
+
+        let constructedPrompt = detailedPrompt;
+
+        // Step 1: Add Customizations
+        const customizations = [];
+        if (appliedCustomizations.hair.trim()) customizations.push(`hair: ${appliedCustomizations.hair.trim()}`);
+        if (appliedCustomizations.gender.trim()) customizations.push(`gender: ${appliedCustomizations.gender.trim()}`);
+        if (appliedCustomizations.shirt.trim()) customizations.push(`top/shirt: ${appliedCustomizations.shirt.trim()}`);
+        if (appliedCustomizations.pants.trim()) customizations.push(`pants/bottoms: ${appliedCustomizations.pants.trim()}`);
+        if (appliedCustomizations.shoes.trim()) customizations.push(`shoes: ${appliedCustomizations.shoes.trim()}`);
+        if (appliedCustomizations.accessories.trim()) customizations.push(`accessories: ${appliedCustomizations.accessories.trim()}`);
         
-        let currentPrompt = detailedPrompt;
+        if (customizations.length > 0) {
+            constructedPrompt += ` Important: modify the image with these specific details: ${customizations.join('; ')}.`;
+        }
+
+        // Step 2: Add Face Reference Instructions
         if (useFaceReference) {
             if (subjectCount > 1) {
                 const faceRefInstruction = useSeparateReferences
                     ? "use a separate face reference for each corresponding person"
                     : "use the provided reference photos for each person";
 
-                currentPrompt = `${detailedPrompt} The final image must perfectly replicate the described scene, including the exact poses, body language, interactions, and relative positions of all subjects. (Do not change facial details; ${faceRefInstruction}, ensuring their facial features and hair are accurately transferred while maintaining a photorealistic and cohesive look).`;
+                constructedPrompt += ` The final image must perfectly replicate the described scene, including the exact poses, body language, interactions, and relative positions of all subjects. (Do not change facial details; ${faceRefInstruction}, ensuring their facial features and hair are accurately transferred while maintaining a photorealistic and cohesive look).`;
             } else {
-                 currentPrompt = `${detailedPrompt} (Do not change facial details from the description; use the provided reference photo to accurately transfer the subject's face and hair, maintaining realistic skin texture and a photorealistic quality).`;
+                 constructedPrompt += ` (Do not change facial details from the description; use the provided reference photo to accurately transfer the subject's face and hair, maintaining realistic skin texture and a photorealistic quality).`;
             }
         }
 
+        // Step 3: Add Aspect Ratio
         const currentAr = aspectRatio === 'Original' ? originalAspectRatio : aspectRatio;
-
         if (currentAr && currentAr !== 'Original') {
-            const final = `${currentPrompt} --ar ${currentAr}`;
+            const final = `${constructedPrompt} --ar ${currentAr}`;
             setFinalPrompt(final.trim());
         } else {
-            setFinalPrompt(currentPrompt.trim());
+            setFinalPrompt(constructedPrompt.trim());
         }
-
-    }, [detailedPrompt, subjectCount, aspectRatio, originalAspectRatio, useFaceReference, useSeparateReferences]);
+    }, [detailedPrompt, subjectCount, aspectRatio, originalAspectRatio, useFaceReference, useSeparateReferences, appliedCustomizations]);
 
     const renderJiplakContent = () => {
         if (isLoading) {
@@ -258,6 +320,32 @@ const App: React.FC = () => {
                                 </div>
                             </div>
                         )}
+
+                        <div className="p-4 bg-slate-700/50 rounded-lg space-y-4">
+                            <div className="flex flex-col">
+                                <h3 className="text-base font-medium text-slate-300">Ubah Detail (Opsional)</h3>
+                                <p className="text-xs text-slate-400">Ganti bagian dari prompt asli. Kosongkan jika tidak ingin merubah.</p>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <CustomizationInput id="hair-input" label="Ganti Rambut" value={customizationInputs.hair} onChange={handleCustomizationInputChange} placeholder="cth: rambut pendek hitam" />
+                                <CustomizationInput id="gender-input" label="Jenis Kelamin" value={customizationInputs.gender} onChange={handleCustomizationInputChange} placeholder="cth: seorang wanita" />
+                                <CustomizationInput id="shirt-input" label="Baju" value={customizationInputs.shirt} onChange={handleCustomizationInputChange} placeholder="cth: kaos merah" />
+                                <CustomizationInput id="pants-input" label="Celana" value={customizationInputs.pants} onChange={handleCustomizationInputChange} placeholder="cth: celana jeans biru" />
+                                <CustomizationInput id="shoes-input" label="Sepatu" value={customizationInputs.shoes} onChange={handleCustomizationInputChange} placeholder="cth: sepatu kets putih" />
+                                <CustomizationInput id="accessories-input" label="Aksesoris" value={customizationInputs.accessories} onChange={handleCustomizationInputChange} placeholder="cth: memakai kacamata" />
+                            </div>
+                             <div className="pt-2 flex justify-end">
+                                <button
+                                    onClick={handleApplyCustomizations}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white font-semibold text-sm rounded-md shadow-sm hover:bg-slate-500 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-cyan-500"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.885-.666A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566z" clipRule="evenodd" />
+                                    </svg>
+                                    <span>Terapkan Perubahan</span>
+                                </button>
+                            </div>
+                        </div>
 
                         <div className="space-y-3">
                             <label className="text-base font-medium text-slate-300">Ukuran/Bentuk Layar</label>

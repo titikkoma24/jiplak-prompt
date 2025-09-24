@@ -12,8 +12,16 @@ const NanoBanana: React.FC = () => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isTranslating, setIsTranslating] = useState<boolean>(false);
     const [targetLang, setTargetLang] = useState<'ID' | 'EN'>('ID');
-    const [results, setResults] = useState<NanoResult[]>([]);
     const [error, setError] = useState<string | null>(null);
+
+    // State for undo/redo
+    const [history, setHistory] = useState<NanoResult[][]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+
+    const currentResults = history[historyIndex] ?? [];
+    const canUndo = historyIndex > 0;
+    const canRedo = historyIndex < history.length - 1;
+
 
     const handleFilesChange = useCallback((newFiles: File[]) => {
         setFiles(newFiles);
@@ -60,7 +68,6 @@ const NanoBanana: React.FC = () => {
 
         setIsLoading(true);
         setError(null);
-        setResults([]);
         
         try {
             const promptText = prompt.trim();
@@ -76,7 +83,10 @@ const NanoBanana: React.FC = () => {
             }
 
             const generatedResults = await generateWithNanoBanana(files, finalPrompt);
-            setResults(generatedResults);
+            const newHistory = [...history.slice(0, historyIndex + 1), generatedResults];
+            setHistory(newHistory);
+            setHistoryIndex(newHistory.length - 1);
+            
             toast.success('Edit generated successfully!');
         } catch (err: any) {
             const rawMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
@@ -93,6 +103,18 @@ const NanoBanana: React.FC = () => {
         }
     };
     
+    const handleUndo = () => {
+        if (canUndo) {
+            setHistoryIndex(prev => prev - 1);
+        }
+    };
+    
+    const handleRedo = () => {
+        if (canRedo) {
+            setHistoryIndex(prev => prev + 1);
+        }
+    };
+
     const resolutionOptions = ['Default', 'HD', '4K', '8K'];
     const TranslateLoader: React.FC = () => <div className="w-5 h-5 border-2 border-slate-500 border-t-cyan-400 rounded-full animate-spin"></div>;
 
@@ -177,11 +199,25 @@ const NanoBanana: React.FC = () => {
                 </div>
             )}
 
-            {results.length > 0 && (
+            {currentResults.length > 0 && (
                 <div className="space-y-6 border-t border-slate-700 pt-6">
-                    <h3 className="text-xl font-bold text-center text-slate-100">Results</h3>
+                    <div className="flex justify-center items-center gap-6">
+                        <h3 className="text-xl font-bold text-center text-slate-100">Results</h3>
+                        <div className="flex items-center gap-2 bg-slate-700/50 p-1 rounded-md">
+                             <button onClick={handleUndo} disabled={!canUndo} title="Undo" aria-label="Undo" className="p-1.5 rounded-md text-slate-300 hover:bg-slate-600 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                            <button onClick={handleRedo} disabled={!canRedo} title="Redo" aria-label="Redo" className="p-1.5 rounded-md text-slate-300 hover:bg-slate-600 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
+                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                     <div className="bg-slate-900/50 p-4 rounded-lg space-y-4">
-                        {results.map((result, index) => {
+                        {currentResults.map((result, index) => {
                             if (result.type === 'image') {
                                 return (
                                     <div key={index} className="relative group">
