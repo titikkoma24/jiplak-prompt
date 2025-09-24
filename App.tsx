@@ -29,6 +29,7 @@ const App: React.FC = () => {
     const [aspectRatio, setAspectRatio] = useState<string>('Original');
     const [originalAspectRatio, setOriginalAspectRatio] = useState<string | null>(null);
     const [useFaceReference, setUseFaceReference] = useState<boolean>(true);
+    const [useSeparateReferences, setUseSeparateReferences] = useState<boolean>(true);
     
     // Helper to calculate greatest common divisor for aspect ratio
     const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -99,6 +100,7 @@ const App: React.FC = () => {
         setAspectRatio('Original');
         setOriginalAspectRatio(null);
         setUseFaceReference(true);
+        setUseSeparateReferences(true);
     };
 
     const handleImageUpload = useCallback(async (file: File | null) => {
@@ -156,9 +158,13 @@ const App: React.FC = () => {
         let currentPrompt = detailedPrompt;
         if (useFaceReference) {
             if (subjectCount > 1) {
-                currentPrompt = `${detailedPrompt} (do not change facial details, use the reference photos provided for each corresponding subject) contrast beautifully with a well-lit scene. Maintain the exact facial and hair details from the reference photos for each subject, while maintaining realistic skin texture, natural expressions, and photorealistic quality.`;
+                const faceRefInstruction = useSeparateReferences
+                    ? "use a separate face reference for each corresponding person"
+                    : "use the provided reference photos for each person";
+
+                currentPrompt = `${detailedPrompt} The final image must perfectly replicate the described scene, including the exact poses, body language, interactions, and relative positions of all subjects. (Do not change facial details; ${faceRefInstruction}, ensuring their facial features and hair are accurately transferred while maintaining a photorealistic and cohesive look).`;
             } else {
-                 currentPrompt = `${detailedPrompt} (do not change facial details, according to the reference photo uploaded) contrast beautifully with a well-lit subject. Maintain the exact facial and hair details of the reference photo uploaded, while maintaining realistic skin texture, natural expressions, and photorealistic quality.`;
+                 currentPrompt = `${detailedPrompt} (Do not change facial details from the description; use the provided reference photo to accurately transfer the subject's face and hair, maintaining realistic skin texture and a photorealistic quality).`;
             }
         }
 
@@ -171,7 +177,7 @@ const App: React.FC = () => {
             setFinalPrompt(currentPrompt.trim());
         }
 
-    }, [detailedPrompt, subjectCount, aspectRatio, originalAspectRatio, useFaceReference]);
+    }, [detailedPrompt, subjectCount, aspectRatio, originalAspectRatio, useFaceReference, useSeparateReferences]);
 
     const renderJiplakContent = () => {
         if (isLoading) {
@@ -231,6 +237,27 @@ const App: React.FC = () => {
                                 </p>
                             </div>
                         </div>
+
+                        {subjectCount > 1 && useFaceReference && (
+                            <div className="flex items-center space-x-3 bg-slate-700/50 p-3 rounded-lg animate-fade-in">
+                                <input
+                                    type="checkbox"
+                                    id="separateReferences"
+                                    checked={useSeparateReferences}
+                                    onChange={(e) => setUseSeparateReferences(e.target.checked)}
+                                    className="h-5 w-5 rounded border-slate-500 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-700"
+                                    aria-describedby="separateReferences-description"
+                                />
+                                <div className="flex flex-col">
+                                    <label htmlFor="separateReferences" className="text-sm font-medium text-slate-300 select-none cursor-pointer">
+                                        Use a separate face reference for each person
+                                    </label>
+                                    <p id="separateReferences-description" className="text-xs text-slate-400">
+                                        Adds a specific instruction for multi-person images.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="space-y-3">
                             <label className="text-base font-medium text-slate-300">Ukuran/Bentuk Layar</label>
